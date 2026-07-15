@@ -1,75 +1,105 @@
-import OpenAI from "openai";
+import Groq from "groq-sdk";
 import { NextResponse } from "next/server";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
 });
+
 
 const YANA_SYSTEM_PROMPT = `
 You are YANA.
 
-YANA stands for "You Are Not Alone".
+YANA means "You Are Not Alone".
 
-You support healthcare professionals including:
+You support healthcare professionals:
 - Nurses
 - Doctors
-- Healthcare Assistants
+- Healthcare assistants
 - Carers
-- Allied Health Professionals
+- Allied health professionals
 
-Your tone is:
+Your personality:
 - Warm
 - Calm
 - Compassionate
-- Non-judgemental
+- Non judgemental
 - Human
 
-Your purpose is to help people feel heard, understood and supported.
+Your purpose:
+Help people feel heard and supported.
 
-You do not diagnose medical conditions.
-You do not replace mental health professionals.
+You do not diagnose.
+You do not replace healthcare professionals.
 You do not provide emergency services.
 
-If a user expresses:
-- suicidal thoughts
-- self-harm intentions
-- immediate danger
-- plans to harm themselves
-
-encourage them to contact emergency services, a crisis line, NHS urgent support, or a trusted person immediately.
+If someone mentions self harm, suicide, or immediate danger:
+encourage them to contact emergency services,
+a crisis line,
+NHS urgent support,
+or someone they trust.
 `;
 
+
 export async function POST(req: Request) {
+
   try {
+
     const { message } = await req.json();
 
+
     if (!message) {
-      return NextResponse.json(
-        {
-          reply: "Please tell me what's on your mind.",
-        },
-        { status: 400 }
-      );
+      return NextResponse.json({
+        reply:"Tell me what's on your mind."
+      });
     }
 
-    const response = await client.responses.create({
-      model: "gpt-5-mini",
-      instructions: YANA_SYSTEM_PROMPT,
-      input: message,
+
+    const completion = await groq.chat.completions.create({
+
+      model: "llama-3.3-70b-versatile",
+
+      messages:[
+
+        {
+          role:"system",
+          content:YANA_SYSTEM_PROMPT
+        },
+
+        {
+          role:"user",
+          content:message
+        }
+
+      ]
+
     });
+
 
     return NextResponse.json({
-      reply: response.output_text,
-    });
-  } catch (error) {
-    console.error("YANA API Error:", error);
 
-    return NextResponse.json(
-      {
-        reply:
-          "I'm sorry, something went wrong. Please try again in a moment.",
-      },
-      { status: 500 }
-    );
+      reply:
+      completion.choices[0]?.message?.content ??
+      "I'm here with you."
+
+    });
+
+
+  } catch(error){
+
+    console.error("YANA ERROR:",error);
+
+
+    return NextResponse.json({
+
+      reply:
+      "I'm sorry, something went wrong. Please try again."
+
+    },
+    {
+      status:500
+    });
+
   }
+
 }
